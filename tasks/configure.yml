@@ -1,0 +1,74 @@
+---
+# configuration tasks for ansible-postfix
+- name: Configure system mailname
+  template:
+    src: etc/mailname.j2
+    dest: /etc/mailname
+    owner: root
+    group: root
+    mode: 0644
+  when: postfix_dpkg_check.rc == 1
+  tags:
+    - postfix
+    - config
+
+- name: Disable local mail
+  lineinfile:
+    regexp: '^(local\s+unix.*local)$'
+    line: '#\1'
+    backup: yes
+  when:
+    - postfix_disable_local
+    - postfix_relay_config is defined
+    - postfix_dpkg_check.rc == 1
+  tags:
+    - postfix
+    - config
+
+- name: Configure postfix
+  template:
+    src: etc/postfix/main.j2
+    dest: /etc/postfix/main.cf
+    owner: root
+    group: root
+    mode: 0644
+  notify: restart postfix
+  when: postfix_dpkg_check.rc == 1
+  tags:
+    - postfix
+    - config
+
+- name: Install any user-provided configuration templates
+  template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: "{{ item.owner | default('root') }}"
+    group: "{{ item.group | default('root') }}"
+    mode: "{{ item.mode | default('0644') }}"
+  when: postfix_dpkg_check.rc == 1
+  with_items: "{{ postfix_config_templates | default([]) }}"
+  register: _postfix_config_templates
+  notify:
+    - restart postfix
+  tags:
+    - postfix
+    - config
+
+- name: run postmap
+  command: postmap hash:/etc/postfix/{{ item }}
+  args:
+    creates: "/etc/postfix/{{ item }}.db"
+  with_items: "{{ postfix_postmap_files | default([]) }}"
+  notify: update postmap file permissions
+  tags:
+    - postfix
+    - config
+
+- name: Enable postfix service
+  service:
+    name: postfix
+    enabled: yes
+  when: postfix_dpkg_check.rc == 1
+  tags:
+    - postfix
+    - config

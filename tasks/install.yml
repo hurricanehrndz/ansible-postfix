@@ -1,0 +1,57 @@
+---
+# installation tasks for ansible-postfix
+- name: Check if postfix is intalled
+  shell: dpkg-query -s postfix 2> /dev/null | grep -c "install ok installed"
+  ignore_errors: true
+  register: postfix_dpkg_check
+  changed_when: false
+
+- name: Uninstall other MTAs
+  apt:
+    name: "{{ item }}"
+    state: absent
+  when: postfix_dpkg_check.rc == 1
+  with_items:
+    - exim4
+    - sendmail
+    - ssmtp
+  tags:
+    - postfix
+    - package
+
+- name: Install postfix
+  apt:
+    name: postfix
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+  register: postfix_apt_install
+  when: postfix_dpkg_check.rc == 1
+  tags:
+    - postfix
+    - package
+
+- name: Install postfix systemd unit
+  copy:
+    src: postfix.service
+    dest: /lib/systemd/system/
+    force: no
+    mode: 0644
+    owner: root
+    group: root
+  when: postfix_dpkg_check.rc == 1
+  notify: reload systemd
+  tags:
+    - postfix
+    - package
+
+- name: Install MUA
+  apt:
+    name: bsd-mailx
+    state: present
+  when:
+    - not postfix_disable_local
+    - postfix_dpkg_check.rc == 1
+  tags:
+    - MUA
+    - package

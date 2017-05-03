@@ -1,0 +1,5 @@
+---
+# defaults file for ansible-postfix
+postfix_tld: "{{ 'local' if ansible_domain == '' else ansible_domain }}"
+postfix_mailname: "{{ ansible_hostname }}.{{ postfix_tld }}"
+postfix_disable_local: false

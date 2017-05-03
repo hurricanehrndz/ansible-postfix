@@ -1,0 +1,20 @@
+---
+sudo: required
+# docker is required to run tests
+services: docker
+
+before_install:
+  - gem install bundle
+
+install:
+  - pip install ansible
+  - bundle install
+
+script:
+  # run kitchen tests (destroy, create, converge, setup, verify and destroy)
+  - ansible-lint .
+  - bundle exec kitchen create
+  - bundle exec kitchen converge
+  - if  [ "$(bundle exec kitchen converge | grep -c ":\sok=\d+\s+changed=0")" -eq "0" ] ; then echo "Idempotence test passed."; fi;
+  - bundle exec kitchen verify
+  - bundle exec kitchen destroy
