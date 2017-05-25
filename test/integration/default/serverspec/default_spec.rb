@@ -1,6 +1,6 @@
 require_relative './spec_helper'
 
-describe 'ansible-ansible-postfix:default' do
+describe 'ansible-postfix::default' do
 
   describe file('/etc/postfix/main.cf') do
     it { should be_owned_by 'root' }
